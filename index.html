@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Transmisión Clonada</title>
+    <title>Mi Transmisión con Proxy</title>
     <!-- Cargamos la librería Hls.js para poder reproducir flujos en vivo .m3u8 -->
     <script src="https://jsdelivr.net"></script>
     <style>
@@ -40,18 +40,21 @@
 <body>
 
     <div class="contenedor">
-        <h1>Reproductor de Video en GitHub Pages</h1>
-        <!-- El reproductor nativo con controles de volumen y pantalla completa -->
+        <h1>Reproductor de Video con Proxy en GitHub</h1>
+        <!-- El reproductor nativo con controles -->
         <video id="reproductor" controls autoplay muted></video>
     </div>
 
     <script>
-        // REEMPLAZA EL TEXTO ENTRE LAS COMILLAS POR TU ENLACE COPIADO CON F12
-        const urlTransmision = "https://m2.domain990.sbs/global/foxdeportes/index.m3u8?token=023dd9ba92c1b31485f86fb36459f0120050e46f-5a-1784828837-1784774837&ip=187.246.2.44";
+        // OBTÉN UN ENLACE NUEVO Y FRESCO CON F12 Y PÉGALO AQUÍ ADENTRO:
+        const enlaceOriginal = "https://m2.domain990.sbs/foxdeportes/tracks-v1a1/mono.m3u8?ip=187.246.2.44&token=023dd9ba92c1b31485f86fb36459f0120050e46f-5a-1784828837-1784774837";
+
+        // Aquí el código junta el Proxy Intermediario con tu enlace para romper el bloqueo
+        const urlTransmision = "https://allorigins.win" + encodeURIComponent(enlaceOriginal);
 
         const video = document.getElementById('reproductor');
 
-        // Lógica técnica para activar el flujo de video en el navegador
+        // Activamos la transmisión simulando que somos un usuario normal
         if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(urlTransmision);
@@ -60,7 +63,6 @@
                 video.play();
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Compatibilidad directa para dispositivos Apple (Safari/iOS)
             video.src = urlTransmision;
         }
     </script>
