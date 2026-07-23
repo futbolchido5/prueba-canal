@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba de Transmisión en GitHub</title>
+    <title>Prueba de Transmisión Segura</title>
     <script src="https://jsdelivr.net"></script>
     <style>
         body { margin: 0; background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
@@ -15,13 +15,14 @@
 <body>
 
     <div class="contenedor">
-        <h1>¡Transmisión en Vivo Funcionando en GitHub!</h1>
-        <video id="reproductor" controls autoplay muted></video>
+        <h1>¡Transmisión Segura en GitHub!</h1>
+        <!-- Agregamos playsinline para mejorar la compatibilidad con móviles -->
+        <video id="reproductor" controls autoplay muted playsinline></video>
     </div>
 
     <script>
-        // Este es un enlace de transmisión HLS (.m3u8) público y libre de bloqueos
-        const urlTransmision = "https://akamaihd.net";
+        // Enlace HLS de prueba alojado de forma segura en servidores estables
+        const urlTransmision = "https://googleapis.com";
 
         const video = document.getElementById('reproductor');
 
@@ -30,7 +31,9 @@
             hls.loadSource(urlTransmision);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play();
+                video.play().catch(function(error) {
+                    console.log("El auto-play fue bloqueado por el navegador, requiere clic.");
+                });
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = urlTransmision;
@@ -39,5 +42,3 @@
 
 </body>
 </html>
-
-   
