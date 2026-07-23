@@ -1,44 +1,195 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba de Transmisión Segura</title>
-    <script src="https://jsdelivr.net"></script>
-    <style>
-        body { margin: 0; background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
-        .contenedor { width: 100%; max-width: 750px; padding: 20px; text-align: center; background: #222; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { color: #00ff88; font-size: 1.4rem; margin-bottom: 20px; }
-        video { width: 100%; height: auto; border-radius: 6px; background: #000; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Efecto Visual Espectacular</title>
+  
+  <!-- AQUÍ PEGAS EL CSS -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background-color: #08090d;
+      color: #ffffff;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .card {
+      position: relative;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 3rem 2.5rem;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      max-width: 420px;
+      width: 90%;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 0.8rem;
+    }
+
+    .highlight {
+      color: #00ffcc;
+      text-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+    }
+
+    p {
+      color: #a0a5c0;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      background: linear-gradient(135deg, #00ffcc 0%, #00b8ff 100%);
+      color: #000;
+      font-weight: 700;
+      padding: 0.9rem 2rem;
+      border-radius: 50px;
+      box-shadow: 0 10px 20px rgba(0, 255, 204, 0.2);
+    }
+  </style>
 </head>
 <body>
 
-    <div class="contenedor">
-        <h1>¡Transmisión Segura en GitHub!</h1>
-        <!-- Agregamos playsinline para mejorar la compatibilidad con móviles -->
-        <video id="reproductor" controls autoplay muted playsinline></video>
-    </div>
+  <canvas id="canvas"></canvas>
 
-    <script>
-        // Enlace HLS de prueba alojado de forma segura en servidores estables
-        const urlTransmision = "https://googleapis.com";
+  <main class="card">
+    <h1>PROYECTO <span class="highlight">GITHUB</span></h1>
+    <p>Pasa el cursor sobre la pantalla para interactuar con la red.</p>
+    <a href="#" class="btn">Explorar</a>
+  </main>
 
-        const video = document.getElementById('reproductor');
+  <!-- AQUÍ PEGAS EL JAVASCRIPT -->
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-        if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(urlTransmision);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play().catch(function(error) {
-                    console.log("El auto-play fue bloqueado por el navegador, requiere clic.");
-                });
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = urlTransmision;
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const mouse = { x: null, y: null, radius: 150 };
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.x;
+      mouse.y = e.y;
+    });
+
+    window.addEventListener('mouseleave', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 1;
+        this.speedX = (Math.random() - 0.5) * 1.5;
+        this.speedY = (Math.random() - 0.5) * 1.5;
+      }
+
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+
+        if (mouse.x !== null && mouse.y !== null) {
+          let dx = mouse.x - this.x;
+          let dy = mouse.y - this.y;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < mouse.radius) {
+            const angle = Math.atan2(dy, dx);
+            const force = (mouse.radius - distance) / mouse.radius;
+            this.x -= Math.cos(angle) * force * 3;
+            this.y -= Math.sin(angle) * force * 3;
+          }
         }
-    </script>
+      }
 
+      draw() {
+        ctx.fillStyle = '#00ffcc';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    const particles = [];
+    const particleCount = Math.floor((canvas.width * canvas.height) / 9000);
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push(new Particle());
+    }
+
+    function connect() {
+      for (let a = 0; a < particles.length; a++) {
+        for (let b = a; b < particles.length; b++) {
+          let dx = particles[a].x - particles[b].x;
+          let dy = particles[a].y - particles[b].y;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 120) {
+            let opacity = 1 - (distance / 120);
+            ctx.strokeStyle = `rgba(0, 255, 204, ${opacity * 0.4})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(particles[a].x, particles[a].y);
+            ctx.lineTo(particles[b].x, particles[b].y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      connect();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
 </body>
 </html>
