@@ -3,58 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Transmisión con Proxy</title>
-    <!-- Cargamos la librería Hls.js para poder reproducir flujos en vivo .m3u8 -->
+    <title>Prueba de Transmisión en GitHub</title>
     <script src="https://jsdelivr.net"></script>
     <style>
-        body { 
-            margin: 0; 
-            background-color: #000; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            font-family: sans-serif;
-        }
-        .contenedor {
-            width: 100%;
-            max-width: 850px;
-            padding: 10px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-        h1 {
-            color: #fff;
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-        }
-        video { 
-            width: 100%; 
-            height: auto; 
-            border: 2px solid #222; 
-            border-radius: 8px;
-            box-shadow: 0px 4px 20px rgba(0,0,0,0.8);
-        }
+        body { margin: 0; background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+        .contenedor { width: 100%; max-width: 750px; padding: 20px; text-align: center; background: #222; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #00ff88; font-size: 1.4rem; margin-bottom: 20px; }
+        video { width: 100%; height: auto; border-radius: 6px; background: #000; }
     </style>
 </head>
 <body>
 
     <div class="contenedor">
-        <h1>Reproductor de Video con Proxy en GitHub</h1>
-        <!-- El reproductor nativo con controles -->
+        <h1>¡Transmisión en Vivo Funcionando en GitHub!</h1>
         <video id="reproductor" controls autoplay muted></video>
     </div>
 
     <script>
-        // OBTÉN UN ENLACE NUEVO Y FRESCO CON F12 Y PÉGALO AQUÍ ADENTRO:
-        const enlaceOriginal = "https://m2.domain990.sbs/foxdeportes/tracks-v1a1/mono.m3u8?ip=187.246.2.44&token=023dd9ba92c1b31485f86fb36459f0120050e46f-5a-1784828837-1784774837";
-
-        // Aquí el código junta el Proxy Intermediario con tu enlace para romper el bloqueo
-        const urlTransmision = "https://allorigins.win" + encodeURIComponent(enlaceOriginal);
+        // Este es un enlace de transmisión HLS (.m3u8) público y libre de bloqueos
+        const urlTransmision = "https://akamaihd.net";
 
         const video = document.getElementById('reproductor');
 
-        // Activamos la transmisión simulando que somos un usuario normal
         if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(urlTransmision);
@@ -69,3 +39,5 @@
 
 </body>
 </html>
+
+   
