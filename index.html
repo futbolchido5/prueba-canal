@@ -3,192 +3,280 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mini Mario JS</title>
+  <title>Simulador de Física e Impulso 2D</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     }
 
     body {
-      background-color: #111;
-      color: #fff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0b0c10;
+      color: #ffffff;
+      overflow: hidden;
+      height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    /* Panel de Control Superior */
+    .hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 10;
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      gap: 15px;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
     }
 
-    h1 {
-      margin-bottom: 10px;
-      font-size: 1.8rem;
-      color: #ffcc00;
-    }
-
-    p {
-      margin-bottom: 15px;
-      color: #aaa;
+    .hud-title {
+      font-weight: 700;
+      color: #00ffcc;
       font-size: 0.95rem;
     }
 
+    .hud-stats {
+      font-size: 0.85rem;
+      color: #a0a5c0;
+    }
+
+    .btn-clear {
+      background: #ff3366;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s ease;
+    }
+
+    .btn-clear:hover {
+      background: #e02452;
+    }
+
     canvas {
-      border: 4px solid #fff;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-      background-color: #5c94fc; /* Azul cielo estilo Mario */
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: crosshair;
     }
   </style>
 </head>
 <body>
 
-  <h1>MINI PLATAFORMAS JS</h1>
-  <p>Controles: Flechas ⬅️ ➡️ o A/D para moverte | Espacio o ⬆️ para saltar</p>
-  
-  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <!-- Panel informativo flotante -->
+  <div class="hud">
+    <div class="hud-title">⚡ SIMULADOR FÍSICO 2D</div>
+    <div class="hud-stats" id="stats">Pelotas: 0</div>
+    <button class="btn-clear" id="btnClear">Limpiar Pantalla</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
 
   <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const stats = document.getElementById('stats');
+    const btnClear = document.getElementById('btnClear');
 
-    // --- TECLADO ---
-    const keys = {};
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
 
-    // --- JUGADOR (Estilo Mario) ---
-    const player = {
-      x: 50,
-      y: 300,
-      width: 30,
-      height: 40,
-      color: '#e52521', // Rojo Mario
-      vx: 0,
-      vy: 0,
-      speed: 5,
-      gravity: 0.6,
-      jumpForce: -12,
-      grounded: false,
-      score: 0
+    // --- CONFIGURACIÓN DE FÍSICA ---
+    const gravity = 0.35;
+    const friction = 0.985; // Fricción con el aire
+    const bounce = 0.75;    // Elasticidad del suelo y paredes
+
+    const balls = [];
+
+    // Estado del Mouse para Lanzamiento
+    const mouse = {
+      isDown: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0
     };
 
-    // --- ESCENARIO (Plataformas) ---
-    const platforms = [
-      { x: 0, y: 360, width: 800, height: 40, color: '#00a800' },   // Suelo principal
-      { x: 200, y: 270, width: 120, height: 20, color: '#b84418' }, // Bloque flotante 1
-      { x: 400, y: 200, width: 140, height: 20, color: '#b84418' }, // Bloque flotante 2
-      { x: 600, y: 270, width: 100, height: 20, color: '#b84418' }  // Bloque flotante 3
-    ];
-
-    // --- MONEDAS ---
-    const coins = [
-      { x: 240, y: 230, radius: 8, collected: false },
-      { x: 460, y: 160, radius: 8, collected: false },
-      { x: 640, y: 230, radius: 8, collected: false }
-    ];
-
-    // --- BUCLE PRINCIPAL DEL JUEGO ---
-    function update() {
-      // Movimiento horizontal
-      if (keys['ArrowRight'] || keys['KeyD']) {
-        player.vx = player.speed;
-      } else if (keys['ArrowLeft'] || keys['KeyA']) {
-        player.vx = -player.speed;
-      } else {
-        player.vx = 0;
+    // --- CLASE PELOTA ---
+    class Ball {
+      constructor(x, y, vx, vy, radius) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.radius = radius;
+        this.mass = radius; // La masa es proporcional al tamaño
+        this.color = `hsl(${Math.random() * 360}, 80%, 60%)`;
       }
 
-      // Salto
-      if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded) {
-        player.vy = player.jumpForce;
-        player.grounded = false;
-      }
+      update() {
+        // Gravedad
+        this.vy += gravity;
 
-      // Aplicar gravedad
-      player.vy += player.gravity;
+        // Fricción ambiental
+        this.vx *= friction;
+        this.vy *= friction;
 
-      // Actualizar posición
-      player.x += player.vx;
-      player.y += player.vy;
+        // Actualización de posición
+        this.x += this.vx;
+        this.y += this.vy;
 
-      // Límites de la pantalla (Izquierda / Derecha)
-      if (player.x < 0) player.x = 0;
-      if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-
-      // Colisión con Plataformas
-      player.grounded = false;
-      platforms.forEach(plat => {
-        if (
-          player.x < plat.x + plat.width &&
-          player.x + player.width > plat.x &&
-          player.y + player.height >= plat.y &&
-          player.y + player.height <= plat.y + plat.height + player.vy
-        ) {
-          player.y = plat.y - player.height;
-          player.vy = 0;
-          player.grounded = true;
+        // Colisión con los bordes del Canvas
+        if (this.x - this.radius < 0) {
+          this.x = this.radius;
+          this.vx *= -bounce;
+        } else if (this.x + this.radius > canvas.width) {
+          this.x = canvas.width - this.radius;
+          this.vx *= -bounce;
         }
-      });
 
-      // Recolección de Monedas
-      coins.forEach(coin => {
-        if (!coin.collected) {
-          let dx = (player.x + player.width / 2) - coin.x;
-          let dy = (player.y + player.height / 2) - coin.y;
+        if (this.y - this.radius < 0) {
+          this.y = this.radius;
+          this.vy *= -bounce;
+        } else if (this.y + this.radius > canvas.height) {
+          this.y = canvas.height - this.radius;
+          this.vy *= -bounce;
+        }
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0; // Desactivar sombra para rendimiento
+        ctx.closePath();
+      }
+    }
+
+    // --- DETECCIÓN DE COLISIONES ENTRE PELOTAS (Física Elástica 2D) ---
+    function resolveCollisions() {
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          let b1 = balls[i];
+          let b2 = balls[j];
+
+          let dx = b2.x - b1.x;
+          let dy = b2.y - b1.y;
           let distance = Math.sqrt(dx * dx + dy * dy);
+          let minDist = b1.radius + b2.radius;
 
-          if (distance < player.width / 2 + coin.radius) {
-            coin.collected = true;
-            player.score += 100;
+          if (distance < minDist) {
+            // Separación para evitar colape o atascamiento
+            let overlap = minDist - distance;
+            let nx = dx / distance;
+            let ny = dy / distance;
+
+            b1.x -= nx * overlap * 0.5;
+            b1.y -= ny * overlap * 0.5;
+            b2.x += nx * overlap * 0.5;
+            b2.y += ny * overlap * 0.5;
+
+            // Transferencia de Impulso y Conservación de Movimiento
+            let kx = b1.vx - b2.vx;
+            let ky = b1.vy - b2.vy;
+            let p = 2 * (nx * kx + ny * ky) / (b1.mass + b2.mass);
+
+            b1.vx -= p * b2.mass * nx;
+            b1.vy -= p * b2.mass * ny;
+            b2.vx += p * b1.mass * nx;
+            b2.vy += p * b1.mass * ny;
           }
         }
-      });
+      }
     }
 
-    // --- RENDERIZADO GRÁFICO ---
-    function draw() {
-      // Limpiar fondo
+    // --- INTERACCIÓN DE LANZAMIENTO (MOUSE) ---
+    canvas.addEventListener('mousedown', (e) => {
+      mouse.isDown = true;
+      mouse.startX = e.clientX;
+      mouse.startY = e.clientY;
+      mouse.currentX = e.clientX;
+      mouse.currentY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (mouse.isDown) {
+        mouse.currentX = e.clientX;
+        mouse.currentY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (mouse.isDown) {
+        mouse.isDown = false;
+        
+        // Calcular vector de fuerza según el arrastre
+        let vx = (mouse.startX - e.clientX) * 0.15;
+        let vy = (mouse.startY - e.clientY) * 0.15;
+        let radius = Math.random() * 15 + 15; // Tamaño aleatorio
+
+        balls.push(new Ball(mouse.startX, mouse.startY, vx, vy, radius));
+        stats.innerText = `Pelotas: ${balls.length}`;
+      }
+    });
+
+    // Limpiar pantalla
+    btnClear.addEventListener('click', () => {
+      balls.length = 0;
+      stats.innerText = `Pelotas: 0`;
+    });
+
+    // --- BUCLE PRINCIPAL DE ANIMACIÓN ---
+    function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dibujar Plataformas
-      platforms.forEach(plat => {
-        ctx.fillStyle = plat.color;
-        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+      // Dibujar vector/honda de tiro mientras se arrastra el mouse
+      if (mouse.isDown) {
+        ctx.beginPath();
+        ctx.moveTo(mouse.startX, mouse.startY);
+        ctx.lineTo(mouse.currentX, mouse.currentY);
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Círculo guía
+        ctx.beginPath();
+        ctx.arc(mouse.startX, mouse.startY, 15, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
+        ctx.fill();
+      }
+
+      // Actualizar física y dibujar objetos
+      resolveCollisions();
+      balls.forEach(ball => {
+        ball.update();
+        ball.draw();
       });
 
-      // Dibujar Monedas
-      coins.forEach(coin => {
-        if (!coin.collected) {
-          ctx.fillStyle = '#ffcc00';
-          ctx.beginPath();
-          ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // Dibujar Jugador
-      ctx.fillStyle = player.color;
-      ctx.fillRect(player.x, player.y, player.width, player.height);
-
-      // Gorra de Mario (Detalle estético)
-      ctx.fillStyle = '#990000';
-      ctx.fillRect(player.x + 5, player.y, player.width, 8);
-
-      // Mostrar Marcador
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '20px sans-serif';
-      ctx.fillText(`Puntos: ${player.score}`, 20, 35);
+      requestAnimationFrame(animate);
     }
 
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
-
-    // Iniciar el juego
-    gameLoop();
+    animate();
   </script>
 </body>
 </html>
+
+ 
+   
+
+ 
+  
