@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simulador de Física e Impulso 2D</title>
+  <title>Generador de Terreno Procedural 2D</title>
   <style>
     * {
       margin: 0;
@@ -13,7 +13,7 @@
     }
 
     body {
-      background-color: #0b0c10;
+      background-color: #0d1117;
       color: #ffffff;
       overflow: hidden;
       height: 100vh;
@@ -21,7 +21,7 @@
       flex-direction: column;
     }
 
-    /* Panel de Control Superior */
+    /* Controles superiores */
     .hud {
       position: absolute;
       top: 15px;
@@ -44,42 +44,35 @@
       font-size: 0.95rem;
     }
 
-    .hud-stats {
-      font-size: 0.85rem;
-      color: #a0a5c0;
-    }
-
-    .btn-clear {
-      background: #ff3366;
-      color: #fff;
+    .btn-gen {
+      background: linear-gradient(135deg, #00ffcc 0%, #00b8ff 100%);
+      color: #000;
       border: none;
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
       cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.2s ease;
+      font-size: 0.85rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .btn-clear:hover {
-      background: #e02452;
+    .btn-gen:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 255, 204, 0.4);
     }
 
     canvas {
       width: 100vw;
       height: 100vh;
       display: block;
-      cursor: crosshair;
     }
   </style>
 </head>
 <body>
 
-  <!-- Panel informativo flotante -->
   <div class="hud">
-    <div class="hud-title">⚡ SIMULADOR FÍSICO 2D</div>
-    <div class="hud-stats" id="stats">Pelotas: 0</div>
-    <button class="btn-clear" id="btnClear">Limpiar Pantalla</button>
+    <div class="hud-title">🏞️ TERRENO PROCEDURAL</div>
+    <button class="btn-gen" id="btnRegenerate">Generar Nuevo Mapa</button>
   </div>
 
   <canvas id="canvas"></canvas>
@@ -87,196 +80,122 @@
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const stats = document.getElementById('stats');
-    const btnClear = document.getElementById('btnClear');
+    const btnRegenerate = document.getElementById('btnRegenerate');
 
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      generateTerrain();
     }
-    resize();
     window.addEventListener('resize', resize);
 
-    // --- CONFIGURACIÓN DE FÍSICA ---
-    const gravity = 0.35;
-    const friction = 0.985; // Fricción con el aire
-    const bounce = 0.75;    // Elasticidad del suelo y paredes
+    // --- ALGORITMO DE RUIDO 1D (Simulación de Perlin Noise) ---
+    // Genera transiciones suaves entre alturas aleatorias
+    let seed = Math.random();
 
-    const balls = [];
-
-    // Estado del Mouse para Lanzamiento
-    const mouse = {
-      isDown: false,
-      startX: 0,
-      startY: 0,
-      currentX: 0,
-      currentY: 0
-    };
-
-    // --- CLASE PELOTA ---
-    class Ball {
-      constructor(x, y, vx, vy, radius) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.radius = radius;
-        this.mass = radius; // La masa es proporcional al tamaño
-        this.color = `hsl(${Math.random() * 360}, 80%, 60%)`;
-      }
-
-      update() {
-        // Gravedad
-        this.vy += gravity;
-
-        // Fricción ambiental
-        this.vx *= friction;
-        this.vy *= friction;
-
-        // Actualización de posición
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Colisión con los bordes del Canvas
-        if (this.x - this.radius < 0) {
-          this.x = this.radius;
-          this.vx *= -bounce;
-        } else if (this.x + this.radius > canvas.width) {
-          this.x = canvas.width - this.radius;
-          this.vx *= -bounce;
-        }
-
-        if (this.y - this.radius < 0) {
-          this.y = this.radius;
-          this.vy *= -bounce;
-        } else if (this.y + this.radius > canvas.height) {
-          this.y = canvas.height - this.radius;
-          this.vy *= -bounce;
-        }
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 10;
-        ctx.fill();
-        ctx.shadowBlur = 0; // Desactivar sombra para rendimiento
-        ctx.closePath();
-      }
+    function pseudoRandom(x) {
+      const sin = Math.sin(x * 12.9898 + seed * 78.233) * 43758.5453;
+      return sin - Math.floor(sin);
     }
 
-    // --- DETECCIÓN DE COLISIONES ENTRE PELOTAS (Física Elástica 2D) ---
-    function resolveCollisions() {
-      for (let i = 0; i < balls.length; i++) {
-        for (let j = i + 1; j < balls.length; j++) {
-          let b1 = balls[i];
-          let b2 = balls[j];
+    function interpolatedNoise(x) {
+      const integerX = Math.floor(x);
+      const fractionalX = x - integerX;
 
-          let dx = b2.x - b1.x;
-          let dy = b2.y - b1.y;
-          let distance = Math.sqrt(dx * dx + dy * dy);
-          let minDist = b1.radius + b2.radius;
+      // Valores aleatorios en los puntos enteros
+      const v1 = pseudoRandom(integerX);
+      const v2 = pseudoRandom(integerX + 1);
 
-          if (distance < minDist) {
-            // Separación para evitar colape o atascamiento
-            let overlap = minDist - distance;
-            let nx = dx / distance;
-            let ny = dy / distance;
+      // Suavizado mediante interpolación cosenoidal
+      const ft = fractionalX * Math.PI;
+      const f = (1 - Math.cos(ft)) * 0.5;
 
-            b1.x -= nx * overlap * 0.5;
-            b1.y -= ny * overlap * 0.5;
-            b2.x += nx * overlap * 0.5;
-            b2.y += ny * overlap * 0.5;
-
-            // Transferencia de Impulso y Conservación de Movimiento
-            let kx = b1.vx - b2.vx;
-            let ky = b1.vy - b2.vy;
-            let p = 2 * (nx * kx + ny * ky) / (b1.mass + b2.mass);
-
-            b1.vx -= p * b2.mass * nx;
-            b1.vy -= p * b2.mass * ny;
-            b2.vx += p * b1.mass * nx;
-            b2.vy += p * b1.mass * ny;
-          }
-        }
-      }
+      return v1 * (1 - f) + v2 * f;
     }
 
-    // --- INTERACCIÓN DE LANZAMIENTO (MOUSE) ---
-    canvas.addEventListener('mousedown', (e) => {
-      mouse.isDown = true;
-      mouse.startX = e.clientX;
-      mouse.startY = e.clientY;
-      mouse.currentX = e.clientX;
-      mouse.currentY = e.clientY;
-    });
+    function getTerrainHeight(x) {
+      // Suma de múltiples octavas para agregar detalle (montañas + colinas + rocas)
+      let height = 0;
+      height += interpolatedNoise(x * 0.002) * 220; // Montañas grandes
+      height += interpolatedNoise(x * 0.008) * 80;  // Colinas medianas
+      height += interpolatedNoise(x * 0.03) * 15;    // Detalles pequeños
 
-    canvas.addEventListener('mousemove', (e) => {
-      if (mouse.isDown) {
-        mouse.currentX = e.clientX;
-        mouse.currentY = e.clientY;
-      }
-    });
+      return height;
+    }
 
-    canvas.addEventListener('mouseup', (e) => {
-      if (mouse.isDown) {
-        mouse.isDown = false;
-        
-        // Calcular vector de fuerza según el arrastre
-        let vx = (mouse.startX - e.clientX) * 0.15;
-        let vy = (mouse.startY - e.clientY) * 0.15;
-        let radius = Math.random() * 15 + 15; // Tamaño aleatorio
-
-        balls.push(new Ball(mouse.startX, mouse.startY, vx, vy, radius));
-        stats.innerText = `Pelotas: ${balls.length}`;
-      }
-    });
-
-    // Limpiar pantalla
-    btnClear.addEventListener('click', () => {
-      balls.length = 0;
-      stats.innerText = `Pelotas: 0`;
-    });
-
-    // --- BUCLE PRINCIPAL DE ANIMACIÓN ---
-    function animate() {
+    // --- DIBUJO DEL TERRENO Y EL CIELO ---
+    function generateTerrain() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dibujar vector/honda de tiro mientras se arrastra el mouse
-      if (mouse.isDown) {
-        ctx.beginPath();
-        ctx.moveTo(mouse.startX, mouse.startY);
-        ctx.lineTo(mouse.currentX, mouse.currentY);
-        ctx.strokeStyle = '#00ffcc';
-        ctx.lineWidth = 3;
-        ctx.stroke();
+      // 1. Degradado del Cielo (Atardecer/Noche)
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      skyGradient.addColorStop(0, '#0d1117');
+      skyGradient.addColorStop(0.6, '#161b22');
+      skyGradient.addColorStop(1, '#21262d');
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Círculo guía
-        ctx.beginPath();
-        ctx.arc(mouse.startX, mouse.startY, 15, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
-        ctx.fill();
+      // 2. Sol en el fondo
+      ctx.beginPath();
+      ctx.arc(canvas.width * 0.75, canvas.height * 0.3, 60, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffcc00';
+      ctx.shadowColor = '#ff9900';
+      ctx.shadowBlur = 40;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // 3. Capa de Capas de Montañas Lejanas (Paralaje/Profundidad)
+      drawMountainLayer(0.001, canvas.height * 0.55, '#1f2430', 120);
+      
+      // 4. Capa Principal del Terreno
+      const groundBase = canvas.height * 0.65;
+      
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+
+      for (let x = 0; x <= canvas.width; x += 2) {
+        const y = groundBase - getTerrainHeight(x);
+        ctx.lineTo(x, y);
       }
 
-      // Actualizar física y dibujar objetos
-      resolveCollisions();
-      balls.forEach(ball => {
-        ball.update();
-        ball.draw();
-      });
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.closePath();
 
-      requestAnimationFrame(animate);
+      // Degradado de Tierra / Pasto
+      const terrainGradient = ctx.createLinearGradient(0, groundBase - 250, 0, canvas.height);
+      terrainGradient.addColorStop(0, '#2ea043'); // Pasto verde en la superficie
+      terrainGradient.addColorStop(0.15, '#8b4513'); // Tierra marrón
+      terrainGradient.addColorStop(1, '#0d1117');    // Oscuridad en las profundidades
+
+      ctx.fillStyle = terrainGradient;
+      ctx.fill();
     }
 
-    animate();
+    // Dibujar montañas secundarias en el fondo
+    function drawMountainLayer(freq, baseHeight, color, amplitude) {
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+
+      for (let x = 0; x <= canvas.width; x += 4) {
+        const y = baseHeight - (interpolatedNoise(x * freq + 500) * amplitude);
+        ctx.lineTo(x, y);
+      }
+
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    // Botón para cambiar la semilla y regenerar
+    btnRegenerate.addEventListener('click', () => {
+      seed = Math.random();
+      generateTerrain();
+    });
+
+    // Iniciar
+    resize();
   </script>
 </body>
 </html>
-
- 
-   
-
- 
   
